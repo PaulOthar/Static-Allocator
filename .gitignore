@@ -1,3 +1,19 @@
+# Eclipse
+.cproject
+.project
+/.settings/
+
+# My
+/SDL/
+/notes/
+/deprecated/
+/notes/*
+/release/
+
+# GCC
+/bin/
+/lib/
+
 # Prerequisites
 *.d
 
@@ -50,3 +66,4 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+/valgrind/

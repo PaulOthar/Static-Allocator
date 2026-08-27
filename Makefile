@@ -36,7 +36,7 @@ else
 endif
 
 RELEASE_OBJ = $(TMP_DIR)/$(LIBNAME).o
-RELEASE_ASM = $(REL_DIR)/$(OSTYPE)/$(LIBNAME).a
+RELEASE_ASM = $(REL_DIR)/$(OSTYPE)/lib$(LIBNAME).a
 	
 release-build:
 	@mkdir -p $(TMP_DIR)

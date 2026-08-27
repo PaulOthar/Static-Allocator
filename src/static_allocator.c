@@ -26,8 +26,11 @@ typedef struct memheader{
 int avmem_global;
 int avmem_rover;
 
+#ifdef STATIC_ALLOCATOR_SIZE
+char s_pool[STATIC_ALLOCATOR_SIZE];
+#endif
+
 static memheader* rover;
-static char pool[STATIC_ALLOCATOR_SIZE];
 static const int sizemh = sizeof(memheader);
 
 //__attribute__((constructor)) void static_allocator_initialize() {
@@ -39,21 +42,23 @@ static const int sizemh = sizeof(memheader);
 //	rover->tags = STATIC_ALLOCATOR_TAG_FREE;
 //}
 
-static inline void static_allocator_initialize(){
-	avmem_global = STATIC_ALLOCATOR_SIZE - sizemh;
+void s_init(int mem_size){
+	avmem_global = mem_size - sizemh;
 	avmem_rover = avmem_global;
-	rover = (memheader*)pool;
+	rover = (memheader*)s_pool;
 	rover->size = avmem_rover;
 	rover->tags = STATIC_ALLOCATOR_TAG_FREE;
 }
 
 void* s_alloc(int size){
 	if(!size){ return 0; }
-	if(!rover){ static_allocator_initialize(); }
+	#ifdef STATIC_ALLOCATOR_SIZE
+		if(!rover){ s_init(sizeof(s_pool)); }
+	#endif
 	STATIC_ALLOCATOR_DEBUG("Attempting memory allocation of %d bytes from a total of %d",size,avmem_global);
 
 	int sizereal = size + sizemh;
-	memheader* result = (memheader*)pool;
+	memheader* result = (memheader*)s_pool;
 
 	if(rover->size >= sizereal){//if the rover has enough space
 		result = rover;
@@ -115,7 +120,7 @@ void s_free(void* ptr){
 
 void s_merge(void){
 	STATIC_ALLOCATOR_DEBUG("Attempting to merge unused headers, Total: %d",avmem_global);
-	memheader* current = (memheader*)pool;
+	memheader* current = (memheader*)s_pool;
 	while(current != rover){
 		memheader* next = (memheader*)(((void*)(current + 1)) + current->size);
 

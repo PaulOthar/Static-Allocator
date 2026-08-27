@@ -1,12 +1,19 @@
 #ifndef STATIC_ALLOCATOR
 #define STATIC_ALLOCATOR
 
-#ifndef STATIC_ALLOCATOR_SIZE
-#define STATIC_ALLOCATOR_SIZE (1 << 20)
-#endif
-
 extern int avmem_global;
 extern int avmem_rover;
+extern char s_pool[];
+
+#define STATIC_ALLOCATOR_INITIALIZE s_init(sizeof(s_pool));
+
+/**
+ * Initializes avmem_global and avmem_rover.
+ * DOES NOT ALLOCATE SPACE FOR s_pool.
+ * @fn void s_init(int)
+ * @param mem_size The size in bytes
+ */
+void s_init(int mem_size);
 
 /**
  * Allocates the specified number of bytes, with a possible additional cost of 8 bytes for the header.

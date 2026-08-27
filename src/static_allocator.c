@@ -7,8 +7,10 @@
 #define STATIC_ALLOCATOR_DEBUG(MESAGE, ...)
 #endif
 
-#ifndef STATIC_ALLOCATOR_MERGE_AFTER_FREEING
-#define STATIC_ALLOCATOR_MERGE_AFTER_FREEING s_merge();
+#ifdef STATIC_ALLOCATOR_MERGE_AFTER_FREEING
+#define STATIC_ALLOCATOR_AUTOMERGE s_merge();
+#else
+#define STATIC_ALLOCATOR_AUTOMERGE
 #endif
 
 #define STATIC_ALLOCATOR_TAG_FREE 0
@@ -108,7 +110,7 @@ void s_free(void* ptr){
 	tofree->tags = STATIC_ALLOCATOR_TAG_FREE;
 	avmem_global += tofree->size;
 	STATIC_ALLOCATOR_DEBUG("Freeing memory: %d, Total: %d",tofree->size,avmem_global);
-	STATIC_ALLOCATOR_MERGE_AFTER_FREEING
+	STATIC_ALLOCATOR_AUTOMERGE
 }
 
 void s_merge(void){

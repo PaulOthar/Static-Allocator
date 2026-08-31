@@ -23,6 +23,7 @@ typedef struct memheader{
 	int tags;
 }memheader;
 
+int static_memory_size;
 int avmem_global;
 int avmem_rover;
 
@@ -42,7 +43,10 @@ static const int sizemh = sizeof(memheader);
 //	rover->tags = STATIC_ALLOCATOR_TAG_FREE;
 //}
 
+#define _BLOCK_HEADER(PTR) (((memheader*) PTR) - 1)
+
 void s_init(int mem_size){
+	static_memory_size = mem_size;
 	avmem_global = mem_size - sizemh;
 	avmem_rover = avmem_global;
 	rover = (memheader*)s_pool;
@@ -111,7 +115,7 @@ void* s_alloc(int size){
 }
 
 void s_free(void* ptr){
-	memheader* tofree = ((memheader*) ptr) - 1;
+	memheader* tofree = _BLOCK_HEADER(ptr);
 	tofree->tags = STATIC_ALLOCATOR_TAG_FREE;
 	avmem_global += tofree->size;
 	STATIC_ALLOCATOR_DEBUG("Freeing memory: %d, Total: %d",tofree->size,avmem_global);
@@ -119,7 +123,7 @@ void s_free(void* ptr){
 }
 
 void s_merge(void){
-	STATIC_ALLOCATOR_DEBUG("Attempting to merge unused headers, Total: %d",avmem_global);
+	STATIC_ALLOCATOR_DEBUG("Attempting to merge unused headers, Total: %d", avmem_global);
 	memheader* current = (memheader*)s_pool;
 	while(current != rover){
 		memheader* next = (memheader*)(((void*)(current + 1)) + current->size);
@@ -143,4 +147,91 @@ void s_merge(void){
 		STATIC_ALLOCATOR_DEBUG("    Header merged with rover: Total: %d, Rover: %d",avmem_global,avmem_rover);
 		break;
 	}
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------
+
+#include <stdint.h>
+
+int s_within(void* ptr){
+	uintptr_t start = (uintptr_t)s_pool;
+	uintptr_t end   = start + static_memory_size;
+	uintptr_t addr  = (uintptr_t)ptr;
+
+	int result = !(addr < start || addr >= end);
+
+	STATIC_ALLOCATOR_DEBUG("Validating pointer range: <%s>\nStart\t0x%16X\nTarget\t0x%16x\nEnd\t0x%16X", result ? "True" : "False", start, addr, end);
+	return result;
+}
+
+int s_validate(void* ptr){
+	STATIC_ALLOCATOR_DEBUG("Verifying if the pointer <0x%X> has a known header...", (uintptr_t)ptr);
+
+	memheader* target = _BLOCK_HEADER(ptr); uintptr_t target_addr  = (uintptr_t)target;
+	memheader* head = (memheader*)s_pool;
+	while(head != rover){
+		uintptr_t head_addr = (uintptr_t)head;
+
+		if(head_addr > target_addr){
+			STATIC_ALLOCATOR_DEBUG("    Could not find a header with the specified address. (out of range)");
+			return 0;
+		}
+
+		if((head_addr < target_addr) || (head != target)){ head = (memheader*)(((void*)(head + 1)) + head->size); continue; }
+
+		STATIC_ALLOCATOR_DEBUG("    The header for the specified address is known.");
+		return 1;
+	}
+
+	STATIC_ALLOCATOR_DEBUG("    Could not find a header with the specified address. (the rover was hit)");
+	return 0;
+}
+
+int s_size(void* ptr){
+	int result = _BLOCK_HEADER(ptr)->size;
+	STATIC_ALLOCATOR_DEBUG("The declared size of the address <0x%X> is %d", (uintptr_t)ptr, result);
+	return result;
+}
+
+int s_isfree(void* ptr){
+	int result = _BLOCK_HEADER(ptr)->tags;
+	STATIC_ALLOCATOR_DEBUG("The block of the address <0x%X> is currently %s.", (uintptr_t)ptr, result ? "in use" : "free");
+	return !result;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------
+
+int s_count(void){
+	memheader* current = (memheader*)s_pool;
+	int count = 0;
+	STATIC_ALLOCATOR_DEBUG("Counting how many blocks there are...");
+	while(current != rover){ current = (memheader*)(((void*)(current + 1)) + current->size); count++; }
+	STATIC_ALLOCATOR_DEBUG("    %d blocks counted.", count);
+	return count;
+}
+
+void* s_first(void){
+	memheader* current = (memheader*)s_pool;
+	STATIC_ALLOCATOR_DEBUG("Attempting to get the first block of the pool...");
+	if(current == rover){
+		STATIC_ALLOCATOR_DEBUG("    There is no block to get.");
+		return 0;
+	}
+	STATIC_ALLOCATOR_DEBUG("    Found it!");
+	return (void*)(current + 1);
+}
+
+void* s_next(void* ptr){
+	memheader* this = _BLOCK_HEADER(ptr);
+	memheader* next = (memheader*)(((void*)(this + 1)) + this->size);
+	if(next == rover){ return 0; }
+	return (void*)(next + 1);
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------
+
+int s_free_safe(void* ptr){
+	if(!s_validate(ptr)){ return 0; }
+	s_free(ptr);
+	return 1;
 }

@@ -1,6 +1,7 @@
 #ifndef STATIC_ALLOCATOR
 #define STATIC_ALLOCATOR
 
+extern int static_memory_size;
 extern int avmem_global;
 extern int avmem_rover;
 extern char s_pool[];
@@ -38,5 +39,73 @@ void s_free(void* ptr);
  * @fn void s_merge(void)
  */
 void s_merge(void);
+
+//------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Verifies if the pointer is within the memory pool range.
+ * @fn int s_belongs(void*)
+ * @param ptr Pointer to be verified
+ * @return 1 if it is, 0 if it is not.
+ */
+int s_within(void* ptr);
+
+/**
+ * Verifies if the pointer has a known header.
+ * @fn int s_validate(void*)
+ * @param ptr Pointer to be verified
+ * @return 1 if it is, 0 if it is not.
+ */
+int s_validate(void* ptr);
+
+/**
+ * Gets the size of this allocated block declared in the header.
+ * @fn int s_size(void*)
+ * @param ptr Pointer to be verified
+ * @return size declared in the header
+ */
+int s_size(void* ptr);
+
+/**
+ * Verifies the block's header, if it is declared as used or free.
+ * @fn int s_isfree(void*)
+ * @param ptr Pointer to be verified
+ * @return 1 if it is free, 0 if it is being used
+ */
+int s_isfree(void* ptr);
+
+//------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Counts how many blocks there are. (free or not)
+ * @fn int s_count(void)
+ * @return how many exist.
+ */
+int s_count(void);
+
+/**
+ * Returns the address of the first block. (returns 0 if there is no block)
+ * @fn void s_first*(void)
+ * @return a pointer to the first block. (or 0 if there is no block)
+ */
+void* s_first(void);
+
+/**
+ * Returns the address of the next block. (returns 0 if there is no block ahead)
+ * @fn void s_next*(void*)
+ * @param ptr Current pointer
+ * @return a pointer to the next blocks. (or 0 if it reached the end)
+ */
+void* s_next(void* ptr);
+
+//------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Verifies if the specified block is valid before freeing, then free's it, if applicable.
+ * @fn int s_free_safe(void*)
+ * @param ptr Pointer to be verified / freed
+ * @return 1 if it was freed successifully. 0 if not.
+ */
+int s_free_safe(void* ptr);
 
 #endif

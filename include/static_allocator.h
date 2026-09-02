@@ -40,6 +40,16 @@ void s_free(void* ptr);
  */
 void s_merge(void);
 
+/**
+ * Attempts to merge a specific block to its right neighbor.
+ * @fn int s_merge_at(void*)
+ * @param ptr To merge
+ * @return 1 if it could merge, 0 if could not.
+ *
+ * @see s_merge
+ */
+int s_merge_at(void* ptr);
+
 //------------------------------------------------------------------------------------------------------------------------------------
 
 /**

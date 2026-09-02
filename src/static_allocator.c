@@ -2,7 +2,7 @@
 
 #ifdef STATIC_ALLOCATOR_DEBUG_MODE
 #include <stdio.h>
-#define STATIC_ALLOCATOR_DEBUG(MESAGE,...) printf("DEBUG: " MESAGE "\n", ##__VA_ARGS__)
+#define STATIC_ALLOCATOR_DEBUG(MESAGE,...) printf("DEBUG <SA>: " MESAGE "\n", ##__VA_ARGS__)
 #else
 #define STATIC_ALLOCATOR_DEBUG(MESAGE, ...)
 #endif
@@ -59,7 +59,7 @@ void* s_alloc(int size){
 	#ifdef STATIC_ALLOCATOR_SIZE
 		if(!rover){ s_init(sizeof(s_pool)); }
 	#endif
-	STATIC_ALLOCATOR_DEBUG("Attempting memory allocation of %d bytes from a total of %d",size,avmem_global);
+	STATIC_ALLOCATOR_DEBUG("Attempting memory allocation of %d bytes from a total of %d", size, avmem_global);
 
 	int sizereal = size + sizemh;
 	memheader* result = (memheader*)s_pool;
@@ -77,7 +77,7 @@ void* s_alloc(int size){
 		avmem_global -= sizereal;
 		avmem_rover = rover->size;
 
-		STATIC_ALLOCATOR_DEBUG("    Allocating memory from rover: %d + %d (new header), Total = %d",size,sizemh,avmem_global);
+		STATIC_ALLOCATOR_DEBUG("    Allocating memory from rover: %d + %d (new header), Total = %d", size, sizemh, avmem_global);
 		return (void*)(result + 1);
 	}
 
@@ -118,25 +118,26 @@ void s_free(void* ptr){
 	memheader* tofree = _BLOCK_HEADER(ptr);
 	tofree->tags = STATIC_ALLOCATOR_TAG_FREE;
 	avmem_global += tofree->size;
-	STATIC_ALLOCATOR_DEBUG("Freeing memory: %d, Total: %d",tofree->size,avmem_global);
+	STATIC_ALLOCATOR_DEBUG("Freeing memory: %d, Total: %d", tofree->size, avmem_global);
 	STATIC_ALLOCATOR_AUTOMERGE
 }
 
 void s_merge(void){
-	STATIC_ALLOCATOR_DEBUG("Attempting to merge unused headers, Total: %d", avmem_global);
+	STATIC_ALLOCATOR_DEBUG("Attempting to merge unused headers | Total: %d", avmem_global);
 	memheader* current = (memheader*)s_pool;
 	while(current != rover){
 		memheader* next = (memheader*)(((void*)(current + 1)) + current->size);
 
 		if(current->tags != STATIC_ALLOCATOR_TAG_FREE || current->tags != next->tags){
-			STATIC_ALLOCATOR_DEBUG("    Could not merge headers: (Size:%d, Tags:%d)<>(Size:%d, Tags:%d), Total: %d",current->size,current->tags,next->size,next->tags,avmem_global);
+			STATIC_ALLOCATOR_DEBUG("    Could not merge headers: [Size:%d, Tags:%d] X [Size:%d, Tags:%d] | Total: %d", current->size, current->tags, next->size, next->tags, avmem_global);
 			current = next;
 			continue;
 		}
 
 		avmem_global += sizemh;
-		STATIC_ALLOCATOR_DEBUG("    Merging headers: (Size:%d)><(Size:%d)=(+%d bytes from header), Total: %d",current->size,next->size,sizemh,avmem_global);
+		int pre_merge_size = current->size;
 		current->size += next->size + sizemh;
+		STATIC_ALLOCATOR_DEBUG("    Merging headers: [Size:%d] + [Size:%d] + [Header:%d] = [Size:%d] | Total: %d", pre_merge_size, next->size, sizemh, current->size, avmem_global);
 
 		if(next != rover){
 			continue;
@@ -147,6 +148,36 @@ void s_merge(void){
 		STATIC_ALLOCATOR_DEBUG("    Header merged with rover: Total: %d, Rover: %d",avmem_global,avmem_rover);
 		break;
 	}
+}
+
+int s_merge_at(void* ptr){
+	memheader* current = _BLOCK_HEADER(ptr);
+	STATIC_ALLOCATOR_DEBUG("Attempting to merge target header of size %d", current->size);
+
+	if(ptr == rover){
+		STATIC_ALLOCATOR_DEBUG("    Merge canceled! (rover hit)");
+		return 0;
+	}
+
+	memheader* next = (memheader*)(((void*)(current + 1)) + current->size);
+
+	if(current->tags != STATIC_ALLOCATOR_TAG_FREE || current->tags != next->tags){
+		STATIC_ALLOCATOR_DEBUG("    Merge canceled! (%s block is not free)", current->tags != STATIC_ALLOCATOR_TAG_FREE ? "current" : "next");
+		return 0;
+	}
+
+	avmem_global += sizemh;
+	int pre_merge_size = current->size;
+	current->size += next->size + sizemh;
+	STATIC_ALLOCATOR_DEBUG("    Merging headers: [Size:%d] + [Size:%d] + [Header:%d] = [Size:%d] | Total: %d", pre_merge_size, next->size, sizemh, current->size, avmem_global);
+
+	if(next == rover){
+		rover = current;
+		avmem_rover = rover->size;
+		STATIC_ALLOCATOR_DEBUG("    Header merged with rover: Total: %d, Rover: %d",avmem_global,avmem_rover);
+	}
+
+	return 1;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------

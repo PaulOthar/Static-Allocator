@@ -1,0 +1,167 @@
+#include "memory_directory.h"
+#include "static_allocator.h"
+
+#ifdef MEMORY_DIRECTORY_DEBUG_MODE
+#include <stdio.h>
+#define MEMORY_DIRECTORY_DEBUG(MESAGE,...) printf("DEBUG <MD>: " MESAGE "\n", ##__VA_ARGS__)
+#else
+#define MEMORY_DIRECTORY_DEBUG(MESAGE, ...)
+#endif
+
+//https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function
+static uint64_t build_id(char* name){
+	uint64_t result = 0xcbf29ce484222325ULL;
+
+	for (int i = 0; i < 16 && name[i] && name[i] != '/'; i++) {
+		result ^= name[i];
+		result *= 0x100000001b3ULL;
+	}
+
+	return result;
+}
+
+static void copy_name(char* dest, char* src){
+	int i = 0;
+	for(; i < 15 && src[i] && src[i] != '/'; i++){
+		dest[i] = src[i];
+	}
+	dest[i] = 0;
+}
+
+static char* skip_to_next(char* str){
+	while(str[0] && str[0] != '/'){ str++; }
+	return (str[0]) ? str + 1 : 0;
+}
+
+static memory_unit* find_near_unit(memory_unit* root, uint64_t id){
+	for(; root; root = root->next){
+		if(root->id == id){ return root; }
+	}
+	return 0;
+}
+
+static memory_unit* append_unit(memory_unit* dir, char* name, uint64_t id, int size){
+	memory_unit* unit = (memory_unit*)s_alloc(size + sizeof(memory_unit));
+	if(!unit){ return 0; }
+
+	unit->size = size;
+
+	unit->next = dir->content; if(unit->next){ unit->next->prev = unit; }
+	unit->prev = dir;
+	dir->content = unit;
+
+	copy_name(unit->name, name);
+	unit->id = id;
+
+	unit->content = 0;
+
+	return unit;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------
+
+void md_init_root(memory_unit* root){
+	copy_name(root->name, "root");
+	root->id = 0;
+
+	root->next = 0;
+	root->prev = 0;
+	root->content = 0;
+
+	root->size = 0;
+}
+
+void* md_alloc_path(memory_unit* current, char* path, int size){
+	uint64_t id = build_id(path);
+	memory_unit* found = current->content ? find_near_unit(current->content, id) : 0;
+	char* next_path = skip_to_next(path);
+
+	int condit = (found ? 1 : 0) | (next_path ? 2 : 0);
+	switch(condit){
+		case 0://there is no path with this name && there is no more ahead -> then this is what we came to create.
+			found = append_unit(current, path, id, size);
+			if(!found){ return 0; }
+			MEMORY_DIRECTORY_DEBUG("%s > touch '%s' [%d B]\n", current->name, found->name, size);
+			return found + 1;
+		case 1://there is a path with this name && there is no more ahead -> the file already exists, dummy.
+			MEMORY_DIRECTORY_DEBUG("%s > '%s' already exists", current->name, path);
+			return 0;
+		case 2://there is no path with this name && there is more ahead -> then create a directory and go to the next layer
+			found = append_unit(current, path, id, 0);
+			if(!found){ return 0; }
+
+			MEMORY_DIRECTORY_DEBUG("%s > mkdir '%s'", current->name, found->name);
+			MEMORY_DIRECTORY_DEBUG("%s > cd %s", current->name, found->name);
+
+			void* result = md_alloc_path(found, next_path, size);
+			if(!result){//something went wront, might as well free the allocated directory
+				md_free_unit(found);
+				s_merge_at(found);
+			}
+			return result;
+		case 3://there is a path with this name && there is more ahead -> then we found an existing known folder, go to the next layer.
+			MEMORY_DIRECTORY_DEBUG("%s > cd %s", current->name, found->name);
+			return md_alloc_path(found, next_path, size);
+	}
+
+	return 0;
+}
+
+void md_free_unit(memory_unit* unit){
+	if(!unit){ return; }
+
+	//Nuke all its children
+	for(memory_unit* content = unit->content; content; content = content->next){
+		md_free_unit(content);
+	}
+	MEMORY_DIRECTORY_DEBUG("Freeing unit '%s'", unit->name);
+
+	if(unit->next){ unit->next->prev = unit->prev; }
+	if(unit->prev){
+		if(unit->prev->content == unit){ unit->prev->content = unit->next; }
+		else{ unit->prev->next = unit->next; }
+	}
+
+	s_free(unit);
+}
+
+memory_unit* md_fetch_path(memory_unit* root, char* path){
+	for(char* p = path; p && root; p = skip_to_next(p)){
+		if(!root->content){ return 0; }
+		uint64_t id = build_id(p);
+		root = find_near_unit(root->content, id);
+	}
+	return root;
+}
+
+memory_unit* md_header(void* ptr){
+	return (((memory_unit*) ptr) - 1);
+}
+
+void* md_data(memory_unit* unit){
+	return unit + 1;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------
+
+static int name_len(char* name){
+	int i = 0; while(name[i++]){} return i;
+}
+
+#include <stdio.h>
+
+void md_print_tree(memory_unit* root, int identation){
+	char identstr[identation + 1];
+	for(int i = 0; i < identation; i++){ identstr[i] = ' '; }
+	identstr[identation] = 0;
+
+	const int sizeof_memory_unit = sizeof(memory_unit);
+
+	for(; root; root = root->next){
+		int size = root->size;
+		char* name = root->name;
+
+		printf("%s['%s'] -> size: %d (+ %d Header)\n", identstr, name, size, sizeof_memory_unit);
+		if(root->content){ md_print_tree(root->content, identation + (name_len(name) / 2) + 2); }
+	}
+}

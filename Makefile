@@ -6,7 +6,7 @@ TMP_DIR = ./tmp
 REL_DIR = ./lib
 
 SRC = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SRC_DIR)/*/*.c)
-OUTPUT = $(BIN_DIR)/bin.exe
+OUTPUT = $(BIN_DIR)/bin
 
 CFLAGS = -Wall -Wextra -O0 -g3
 
@@ -15,8 +15,11 @@ CALLGRIND_FLAGS = --tool=callgrind --dump-line=yes --dump-instr=yes --collect-ju
 
 CC = gcc
 
+CFLAGS += -DSTATIC_ALLOCATOR_DEBUG_MODE
+CFLAGS += -DMEMORY_DIRECTORY_DEBUG_MODE
+
 all:
-	$(CC) $(SRC) -o $(OUTPUT) -I$(INC_DIR) $(CFLAGS) -DSTATIC_ALLOCATOR_DEBUG_MODE
+	$(CC) $(SRC) -o $(OUTPUT) -I$(INC_DIR) $(CFLAGS)
 	
 mcall:
 	$(CC) $(SRC) -o $(OUTPUT) -I$(INC_DIR) $(CFLAGS) 

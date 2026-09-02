@@ -21,6 +21,7 @@ void s_init(int mem_size);
  * Return null (0) if no big enough space is available.
  * @fn void s_alloc*(int)
  * @param size The size in bytes
+ * @return a pointer to the allocated memory
  */
 void* s_alloc(int size);
 

@@ -135,7 +135,9 @@ void s_merge(void){
 		}
 
 		avmem_global += sizemh;
+		#ifdef STATIC_ALLOCATOR_DEBUG_MODE
 		int pre_merge_size = current->size;
+		#endif
 		current->size += next->size + sizemh;
 		STATIC_ALLOCATOR_DEBUG("    Merging headers: [Size:%d] + [Size:%d] + [Header:%d] = [Size:%d] | Total: %d", pre_merge_size, next->size, sizemh, current->size, avmem_global);
 
@@ -167,7 +169,9 @@ int s_merge_at(void* ptr){
 	}
 
 	avmem_global += sizemh;
+	#ifdef STATIC_ALLOCATOR_DEBUG_MODE
 	int pre_merge_size = current->size;
+	#endif
 	current->size += next->size + sizemh;
 	STATIC_ALLOCATOR_DEBUG("    Merging headers: [Size:%d] + [Size:%d] + [Header:%d] = [Size:%d] | Total: %d", pre_merge_size, next->size, sizemh, current->size, avmem_global);
 

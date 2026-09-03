@@ -1,5 +1,16 @@
 #include "memory_directory.h"
+
+#ifdef MEMORY_DIRECTORY_SYSTEM_ALLOCATOR
+#include <stdlib.h>
+#define ALLOCATE_MEMORY(size) malloc(size)
+#define FREE_MEMORY(ptr) free(ptr)
+#define MERGE_AT(ptr)
+#else
 #include "static_allocator.h"
+#define ALLOCATE_MEMORY(size) s_alloc(size)
+#define FREE_MEMORY(ptr) s_free(ptr)
+#define MERGE_AT(ptr) s_merge_at(ptr)
+#endif
 
 #ifdef MEMORY_DIRECTORY_DEBUG_MODE
 #include <stdio.h>
@@ -41,7 +52,7 @@ static memory_unit* find_near_unit(memory_unit* root, uint64_t id){
 }
 
 static memory_unit* append_unit(memory_unit* dir, char* name, uint64_t id, int size){
-	memory_unit* unit = (memory_unit*)s_alloc(size + sizeof(memory_unit));
+	memory_unit* unit = (memory_unit*)ALLOCATE_MEMORY(size + sizeof(memory_unit));
 	if(!unit){ return 0; }
 
 	unit->size = size;
@@ -96,7 +107,7 @@ void* md_alloc_path(memory_unit* current, char* path, int size){
 			void* result = md_alloc_path(found, next_path, size);
 			if(!result){//something went wront, might as well free the allocated directory
 				md_free_unit(found);
-				s_merge_at(found);
+				MERGE_AT(found);
 			}
 			return result;
 		case 3://there is a path with this name && there is more ahead -> then we found an existing known folder, go to the next layer.
@@ -122,7 +133,7 @@ void md_free_unit(memory_unit* unit){
 		else{ unit->prev->next = unit->next; }
 	}
 
-	s_free(unit);
+	FREE_MEMORY(unit);
 }
 
 memory_unit* md_fetch_path(memory_unit* root, char* path){

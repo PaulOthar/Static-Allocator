@@ -181,6 +181,9 @@ Defines the size of the memory pool in bytes, not allowing `s_pool` to be manual
 ### 4. **`MEMORY_DIRECTORY_DEBUG_MODE`**
 If defined, will print a message to the console, whenever a memory directory related function is called.
 
+### 5. **`MEMORY_DIRECTORY_SYSTEM_ALLOCATOR`**
+If defined, will force the compiler to use the system allocator (`<stdlib.h> malloc, free`).
+
 ### User Macros
 
 Macros that can be used anytime, anywhere.

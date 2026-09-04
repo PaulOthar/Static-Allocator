@@ -31,7 +31,7 @@ mcall:
 
 #-------------------------------------------------
 
-LIBNAME = static_allocator
+LIBNAME = s_alloc
 
 OS := $(shell uname)
 

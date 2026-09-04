@@ -1,5 +1,5 @@
-# Static-Allocator - Simple memory allocator library
-Static-Allocator is a very simple memory allocator, for building systems with a limited memory budget. Allowing the developer to choose how much memory it will be able to allocate upfront.
+# s_alloc - Simple memory allocator library
+s_alloc is a very simple memory allocator, for building systems with a limited memory budget. Allowing the developer to choose how much memory it will be able to allocate upfront.
 
 ## How to use
 ### Step 1: Include the library in your project

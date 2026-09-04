@@ -3,7 +3,7 @@ INC_DIR = ./include
 BIN_DIR = ./bin
 
 TMP_DIR = ./tmp
-REL_DIR = ./lib
+REL_DIR = ./release
 
 SRC = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SRC_DIR)/*/*.c)
 OUTPUT = $(BIN_DIR)/bin
